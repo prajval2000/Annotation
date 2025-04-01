@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Annotation Interface</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { display: flex; justify-content: space-between; }
+        .post-section, .annotation-section { width: 48%; }
+        .highlighted { background-color: yellow; cursor: pointer; }
+        .rank-list { list-style-type: none; padding: 0; }
+        .rank-list li { background: #f4f4f4; margin: 5px 0; padding: 5px; cursor: grab; display: flex; justify-content: space-between; }
+        .delete-btn { background: red; color: white; border: none; cursor: pointer; padding: 2px 5px; }
+        .symptoms { margin-top: 10px; }
+        .controls { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Annotate Depression-Related Text from post and symptoms identified</h2>
+    <div class="container">
+        <div class="post-section">
+            <h3 id="postNumber">Post: 1 / ?</h3>
+            <p id="post"></p>
+            <h3>Highlighted words</h3>
+            <ul class="rank-list" id="rank-list"></ul>
+        </div>
+        <div class="annotation-section">
+            <h3>Depression Symptoms</h3>
+            <div class="symptoms" id="symptoms-list"></div>
+            <div class="controls">
+
+                <button onclick="previousPost()">Previous</button>
+                <button onclick="nextPost()">Next</button>
+
+                <input type="number" id="jumpInput" min="1" placeholder="Post #">
+                <button onclick="jumpToPost()">Jump</button>
+
+                <button onclick="submitAnnotation()">Submit</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        let posts = [];
+        let annotations = {};
+        let currentIndex = 0;
+        let symptomsList = [
+            "Depressed Mood (Sadness, Hopelessness, Emptiness)",
+            "Anhedonia (Loss of Interest or Pleasure)",
+            "Fatigue or Loss of Energy",
+            "Sleep Disturbances (Insomnia or Hypersomnia)",
+            "Changes in Appetite (Weight Loss or Gain)",
+            "Feelings of Worthlessness or Excessive Guilt",
+            "Difficulty Concentrating or Making Decisions",
+            "Psychomotor Agitation or Retardation",
+            "Suicidal Thoughts or Self-Harm",
+            "Social Withdrawal or Isolation",
+            "Hopelessness About the Future",
+            "Increased Sensitivity to Rejection or Criticism"
+        ];
+
+        async function fetchData() {
+            let postsResponse = await fetch("/get_posts");
+            posts = await postsResponse.json();
+
+            let annotationsResponse = await fetch("/get_annotations");
+            annotations = await annotationsResponse.json();
+
+            updatePost();
+            populateSymptoms();
+        }
+
+        function populateSymptoms() {
+            let symptomsDiv = document.getElementById("symptoms-list");
+            symptomsDiv.innerHTML = "";
+            symptomsList.forEach((symptom, index) => {
+                let label = document.createElement("label");
+                let checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.dataset.index = index;
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(" " + symptom));
+                symptomsDiv.appendChild(label);
+                symptomsDiv.appendChild(document.createElement("br"));
+            });
+        }
+
+        // function updatePost() {
+        //     document.getElementById("postNumber").textContent = `Post: ${currentIndex + 1} / ${posts.length}`;
+        //     document.getElementById("post").innerHTML = posts[currentIndex];
+
+        //     let rankList = document.getElementById("rank-list");
+        //     rankList.innerHTML = "";
+
+        //     let storedAnnotations = annotations[currentIndex] || { words: [], symptoms: [] };
+            
+        //     storedAnnotations.words.forEach(addToRankList);
+        //     document.querySelectorAll(".symptoms input").forEach((checkbox, index) => {
+        //         checkbox.checked = storedAnnotations.symptoms.includes(index);
+        //     });
+        // }
+        function updatePost() {
+            document.getElementById("postNumber").textContent = `Post: ${currentIndex + 1} / ${posts.length}`;
+            document.getElementById("post").innerHTML = posts[currentIndex];
+
+            let postElement = document.getElementById("post");
+            let rankList = document.getElementById("rank-list");
+
+            // Ensure annotations[currentIndex] is initialized
+            if (!annotations[currentIndex]) {
+                annotations[currentIndex] = { words: [], symptoms: [] };
+            }
+
+            // Fetch stored annotations
+            let storedAnnotations = annotations[currentIndex] || { words: [], symptoms: [] };
+
+            // Restore highlighted words in the post
+            let originalPost = posts[currentIndex];
+            storedAnnotations.words.forEach(word => {
+                let regex = new RegExp(`(${word})`, "gi"); // Case-insensitive match
+                originalPost = originalPost.replace(regex, `<span class="highlighted" onclick="removeHighlight(this)">$1</span>`);
+            });
+            postElement.innerHTML = originalPost;
+
+            // Restore checked symptoms
+            // document.querySelectorAll(".symptoms input").forEach((checkbox, index) => {
+            //     checkbox.checked = storedAnnotations.symptoms.includes(index);
+            // });
+            // **Repopulate symptoms list before restoring checked state**
+            populateSymptoms();
+
+            // **Ensure symptoms are correctly checked after populating the list**
+            setTimeout(() => {
+                document.querySelectorAll(".symptoms input").forEach((checkbox, index) => {
+                    checkbox.checked = storedAnnotations.symptoms.includes(index);
+                });
+            }, 0);
+
+            // Restore ranked list of highlighted words
+            rankList.innerHTML = "";
+            storedAnnotations.words.forEach(word => {
+                addToRankList(word); // Ensures words appear in the "Highlighted Words" section
+            });
+
+            
+        }
+
+
+        function highlightSelection() {
+            let selection = window.getSelection();
+            if (selection.toString().trim() !== "") {
+                let span = document.createElement("span");
+                span.className = "highlighted";
+                span.textContent = selection.toString();
+                span.onclick = () => removeHighlight(span);
+                let range = selection.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(span);
+                addToRankList(span.textContent);
+            }
+        }
+
+        
+        // function addToRankList(text) {
+        //     let rankList = document.getElementById("rank-list");
+
+        //     // Check if the word is already in the ranked list
+        //     if ([...rankList.children].some(li => li.textContent.replace("X", "").trim() === text)) {
+        //         return; // Avoid duplicates
+        //     }
+
+        //     let listItem = document.createElement("li");
+        //     listItem.textContent = text;
+
+        //     let deleteBtn = document.createElement("button");
+        //     deleteBtn.textContent = "X";
+        //     deleteBtn.className = "delete-btn";
+        //     deleteBtn.onclick = function() {
+        //         listItem.remove();
+        //         annotations[currentIndex].words = annotations[currentIndex].words.filter(w => w !== text);
+        //     };
+
+        //     listItem.appendChild(deleteBtn);
+        //     rankList.appendChild(listItem);
+        // }
+        function addToRankList(text) {
+            // Prevent duplicates
+            //if (annotations[currentIndex].words.includes(text)) return;
+
+            let listItem = document.createElement("li");
+            listItem.textContent = text;
+            listItem.draggable = true;  // Enable dragging
+            listItem.dataset.word = text;  // Store word for tracking
+            listItem.classList.add("draggable-item");
+
+            let deleteBtn = document.createElement("button");
+            deleteBtn.textContent = "X";
+            deleteBtn.className = "delete-btn";
+            deleteBtn.onclick = function() {
+                listItem.remove();
+                annotations[currentIndex].words = annotations[currentIndex].words.filter(w => w !== text);
+            };
+
+            listItem.appendChild(deleteBtn);
+            document.getElementById("rank-list").appendChild(listItem);
+
+            // Add event listeners for dragging
+            listItem.addEventListener("dragstart", dragStart);
+            listItem.addEventListener("dragover", dragOver);
+            listItem.addEventListener("drop", drop);
+            listItem.addEventListener("dragend", dragEnd);
+
+            // Store the word in annotations
+            annotations[currentIndex].words.push(text);
+        }
+
+
+
+        function nextPost() {
+            saveCurrentAnnotations();
+            if (currentIndex < posts.length - 1) {
+                currentIndex++;
+                updatePost();
+            }
+        }
+
+        function previousPost() {
+            saveCurrentAnnotations();
+            if (currentIndex > 0) {
+                currentIndex--;
+                updatePost();
+            }
+        }
+
+        function saveCurrentAnnotations() {
+            annotations[currentIndex] = {
+                words: [...document.querySelectorAll(".rank-list li")].map(li => li.textContent.slice(0, -1)),
+                symptoms: [...document.querySelectorAll(".symptoms input")].map((cb, index) => cb.checked ? index : null).filter(index => index !== null)
+            };
+        }
+
+        function jumpToPost() {
+            let input = document.getElementById("jumpInput").value;
+            let index = parseInt(input) - 1;  // Convert to zero-based index
+            if (!isNaN(index) && index >= 0 && index < posts.length) {
+                saveCurrentAnnotations();
+                currentIndex = index;
+                updatePost();
+            } else {
+                alert("Invalid post number. Please enter a number between 1 and " + posts.length);
+            }
+        }
+
+
+        async function submitAnnotation() {
+            saveCurrentAnnotations();
+            let response = await fetch("/save_annotation", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ post_id: currentIndex, ...annotations[currentIndex] })
+            });
+            alert("Annotations saved!");
+        }
+
+        document.getElementById("post").addEventListener("mouseup", highlightSelection);
+        document.addEventListener("DOMContentLoaded", fetchData);
+
+        let draggedItem = null;
+
+        function dragStart(event) {
+            draggedItem = event.target;
+            event.dataTransfer.effectAllowed = "move";
+            event.target.style.opacity = "0.5";
+        }
+
+        function dragOver(event) {
+            event.preventDefault();
+            let target = event.target.closest("li");
+            if (target && target !== draggedItem) {
+                let list = document.getElementById("rank-list");
+                let items = [...list.children];
+                let draggedIndex = items.indexOf(draggedItem);
+                let targetIndex = items.indexOf(target);
+
+                if (draggedIndex > targetIndex) {
+                    list.insertBefore(draggedItem, target);
+                } else {
+                    list.insertBefore(draggedItem, target.nextSibling);
+                }
+            }
+        }
+
+        function drop(event) {
+            event.preventDefault();
+        }
+
+        function dragEnd(event) {
+            event.target.style.opacity = "1";
+
+            // Update the order of words in annotations
+            let updatedWords = [...document.querySelectorAll("#rank-list li")].map(li => li.dataset.word);
+            annotations[currentIndex].words = updatedWords;
+        }
+
+    </script>
+</body>
+</html>
