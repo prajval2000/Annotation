@@ -85,20 +85,7 @@
             });
         }
 
-        // function updatePost() {
-        //     document.getElementById("postNumber").textContent = `Post: ${currentIndex + 1} / ${posts.length}`;
-        //     document.getElementById("post").innerHTML = posts[currentIndex];
-
-        //     let rankList = document.getElementById("rank-list");
-        //     rankList.innerHTML = "";
-
-        //     let storedAnnotations = annotations[currentIndex] || { words: [], symptoms: [] };
-            
-        //     storedAnnotations.words.forEach(addToRankList);
-        //     document.querySelectorAll(".symptoms input").forEach((checkbox, index) => {
-        //         checkbox.checked = storedAnnotations.symptoms.includes(index);
-        //     });
-        // }
+        
         function updatePost() {
             document.getElementById("postNumber").textContent = `Post: ${currentIndex + 1} / ${posts.length}`;
             document.getElementById("post").innerHTML = posts[currentIndex];
@@ -161,28 +148,7 @@
         }
 
         
-        // function addToRankList(text) {
-        //     let rankList = document.getElementById("rank-list");
-
-        //     // Check if the word is already in the ranked list
-        //     if ([...rankList.children].some(li => li.textContent.replace("X", "").trim() === text)) {
-        //         return; // Avoid duplicates
-        //     }
-
-        //     let listItem = document.createElement("li");
-        //     listItem.textContent = text;
-
-        //     let deleteBtn = document.createElement("button");
-        //     deleteBtn.textContent = "X";
-        //     deleteBtn.className = "delete-btn";
-        //     deleteBtn.onclick = function() {
-        //         listItem.remove();
-        //         annotations[currentIndex].words = annotations[currentIndex].words.filter(w => w !== text);
-        //     };
-
-        //     listItem.appendChild(deleteBtn);
-        //     rankList.appendChild(listItem);
-        // }
+        
         function addToRankList(text) {
             // Prevent duplicates
             //if (annotations[currentIndex].words.includes(text)) return;
