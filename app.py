@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, session, redirect, url_for
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for, send_file
 import pandas as pd
 import json
 import os
@@ -63,6 +63,15 @@ def save_annotation():
         json.dump(annotations, f)
     
     return jsonify({"message": "Annotation saved successfully!"})
+
+@app.route("/download_annotations")
+def download_annotations():
+    if "username" not in session:
+        return redirect(url_for("login"))
+    if not os.path.exists(annotations_file):
+        return "Annotations file not found.", 404
+    return send_file(annotations_file, as_attachment=True)
+
 
 # if __name__ == "__main__":
 #     app.run(debug=True)
